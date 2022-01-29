@@ -1,0 +1,16 @@
+Baki,Yasha Ape,4
+Baki,Kaoru Hanayama,7
+Baki,Gaia,11
+Baki,Toba,20
+Yujiro Hanma,Doppo Orochi,23
+Baki,Dr.Shinogi,24
+Shinogi Kosho,Dr.Shinogi,31
+Baki,Zulu,31
+Katsumi Orochi,Kaoru Hanayama,33
+Goki Shibukawa,Doppo Orochi,41
+Baki,Retsu Kaio,42
+Dorian,Doppo Orochi,52
+Kaoru Hanayama,Spec,54
+Mr. Oliver,Doyle,63
+Doyle,Shinogi Kosho,65
+Yujiro Hanma,Kaku Kaio,82

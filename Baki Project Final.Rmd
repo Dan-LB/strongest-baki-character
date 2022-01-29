@@ -1,0 +1,925 @@
+---
+title: "Il 'livello di forza' dei personaggi in _Baki The Grappler_"
+author: "Daniele Lizzio Bosco"
+date: "20/01/2022"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+
+library(knitr)
+
+library(igraph)
+library(tidygraph)
+library(ggraph)
+library(dplyr)
+library(gapminder)
+library(ggplot2)
+library(tidyr)
+library(tibble)
+#ctrl + alt + i
+
+library(VennDiagram)
+library(imager)
+library(viridis)  
+library(gridExtra)
+library(corrplot)
+library(broom)
+library(modelr)
+library(purrr)
+
+```
+
+# Introduzione
+
+_Baki The Grappler_ è una serie di _manga_ (fumetti giapponesi) e in seguito di animazione che racconta le avventure di un ragazzo - _Baki Hanma_ - che fin da bambino si allena incessantemente nelle arti marziali per diventare un combattente sempre più forte, con l'obiettivo di riuscire ad affrontare e sconfiggere suo padre _Yujiro_, considerato "l'uomo più forte del pianeta". Nel corso della storia Baki incontrerà una moltitudine di personaggi, alleati o rivali, che lo accompagneranno nel sogno di migliorare le sue capacità.
+
+
+```{r, warning=FALSE}
+setwd("/Users/39331/Desktop/ADVANCED DATA SCIENCE/Baki Project")
+par(mfrow=c(1,2)) 
+baki <- load.image('baki.jpg')
+yujiro <- load.image('yujiro.png')
+plot(baki, axes = FALSE, main = "Hanma Baki")
+plot(yujiro, axes = FALSE,  main = "Yujiro Hanma")
+
+
+```
+
+L'analisi svolta riguarda l'adattamento animato (che segue abbastanza fedelmente la storia originale). Esso è suddiviso in 5 stagioni, o parti, per un totale di 98 episodi. Nel corso delle stagioni compare un numero molto elevato di personaggi che si affrontano in tornei, sfide o battaglie individuali. Ogni combattimento presenta generalmente due sfidanti e termina con la vittoria di uno dei due (per esempio l'altro combattente è KO, o non è più in grado di lottare o decide di arrendersi). L'elevato numero di incontri permette quindi di poter definire una "classifica" di forza dei vari personaggi utilizzando la scienza delle reti.
+
+In particolare, _Baki The Grappler_ presenta:
+
+* 98 episodi
+* 106 personaggi che hanno combattuto almeno una volta
+* 175 combattimenti
+
+Questa analisi ci permetterà di:
+
+* Determinare i personaggi principali della serie
+* Valutare alcune proprietà generali della rete dei combattimenti tra i personaggi
+* Valutare degli "score" che indicano la forza di un personaggio al variare del tempo
+  * In particolare, useremo questi score per prevedere l'esito di possibili combattimenti futuri
+  * In questo modo possiamo determinare lo score migliore
+* Infine valuteremo l'andamento dello score migliore ristretto ai personaggi principali, permettendoci di stimare quando Baki sarà finalmente in grado di superare suo padre Yujiro.
+
+### Il Dataset
+Il dataset consiste di due file: il primo contenente la lista di tutti i combattimenti nel formato "Vincitore", "Perdente" e episodio del combattimento, il secondo soltanto i combattimenti "incerti", per esempio con più _manche_ vinte prima da uno e poi dall'altro personaggio. Quest'ultimo file ci servirà come dataset ausiliario.
+
+
+
+```{r, warning=FALSE}
+setwd("/Users/39331/Desktop/ADVANCED DATA SCIENCE/Baki Project")
+df <- read.csv("BAKIDATASETp1.txt", 
+                 header = FALSE,
+                 sep = ",")
+df2 = as_tibble(df)
+colnames(df2) = c("Vincitore", "Perdente", "Episodio")
+kable(head(df2, 10))
+```
+
+
+## Personaggi di Baki
+
+Le 5 parti di baki hanno un numero di episodi variabile. In particolare sono suddivise nel modo seguente:
+
+* Prima parte: fino a ep. 24
+* Seconda parte: da 25 a 48
+* Terza parte: da 49 a 74
+* Quarta parte: da 75 a 87
+* Quinta parte: da 88 a 98
+
+Osserviamo la distribuzione dei personaggi rispetto al primo episodio in cui combattono.
+
+```{r, warning=FALSE}
+setwd("/Users/39331/Desktop/ADVANCED DATA SCIENCE/Baki Project")
+
+df <- read.csv("BAKIDATASETp1.txt", 
+                 header = FALSE,
+                 sep = ",")
+df = as_tibble(df)
+dfAux <- read.csv("bakiAux.txt", 
+                 header = FALSE,
+                 sep = ",")
+dfAux = as_tibble(dfAux)
+
+g <- graph_from_data_frame(df, directed=TRUE) #grafo diretto
+ug <- graph_from_data_frame(df, directed=FALSE) #grado indiretto
+names = V(g)$name
+
+#segmentiamo gli episodi in parti
+p1 = 24
+p2 = 48
+p3 = 74
+p4 = 87
+p5 = 98
+
+n_char = length(names)
+
+#FIRST APPEARANCE
+
+#otteniamo per ogni personaggio il primo episodio in cui "appare"
+#in realtà è il primo episodio in cui finisce un combattimento!
+#dato che ogni combattimento dura generalmente uno o due episodi, spesso coincidono
+#inoltre ogni combattimento che inizia in una stagione termina sempre nella stessa stagione
+
+first_app = rep(c(p5), n_char)
+for (i in 1:n_char){
+  char = names[i]
+  a = filter(df, df$V1==char|df$V2==char)
+  first_app[i] = min(a$V3)
+}
+
+y = rep(c(0), p5)
+for (i in 1:p5) {
+  y[i] = sum(first_app==i) #numero di personaggi nuovi introdotti per episodio
+}
+
+data <- data.frame(
+  value = y,
+  ep = 1:p5
+)
+
+#Plottiamo il numero di personaggi introdotti per episodio
+
+barplot <- ggplot(data=data, aes(x=ep, y=y, fill=as.factor(ep))) +
+  geom_bar(stat="identity") +
+  xlab("") + 
+  ylab("per episode") +
+  scale_fill_manual(values = c(
+                                rep(viridis(5)[1],p1), 
+                                rep(viridis(5)[2],p2-p1),
+                                rep(viridis(5)[3],p3-p2),
+                                rep(viridis(5)[4],p4-p3),
+                                rep(viridis(5)[5],p5-p4))) +
+  labs(fill="Part") +
+  ggtitle("New characters") +
+  theme(plot.title = element_text(hjust = 0.5)) +
+  theme(legend.position  = "none")
+
+
+#questa funzione permette di ottenere tutti i personaggi che appaiono in un certo range di episodi
+
+appear_in <- function(start, end) {
+  app_in = rep(c(FALSE),times=c(n_char))
+  for(i in 1:length(names)){
+    current_c = names[i]
+    w = length(E(g) [ from(current_c)])
+    if(w>=1) {
+      for (j in 1:w){
+        ep = E(g) [ from(current_c)][j]$V3    
+        if(ep>=start&ep<=end){
+          app_in[i] = TRUE
+        }
+      }    
+    }
+    l = length(E(g) [ to(current_c)])
+    if(l>=1){
+      for (j in 1:l){
+        ep = E(g) [ to(current_c) ][j]$V3
+        if(ep >= start & ep <= end){
+          app_in[i] = TRUE
+        }
+      }
+    }
+      
+  }
+  return(app_in) 
+}
+
+
+
+app_in_first = appear_in(1, p1)
+app_in_second = appear_in(p1+1, p2)
+app_in_third = appear_in(p2+1, p3)
+app_in_fourth = appear_in(p3+1, p4)
+app_in_fifth = appear_in(p4+1, p5)
+
+#queste liste servono per generare un diagramma di Venn con i personaggi presenti in più parti
+
+ch1 = names[app_in_first]
+ch2 = names[app_in_second]
+ch3 = names[app_in_third]
+ch4 = names[app_in_fourth]
+ch5 = names[app_in_fifth]
+
+#lista dei personaggi che vengono introdotti (presentati per la prima volta) in una data stagione
+
+int1 = ch1
+int2 = names[app_in_second &! app_in_first]
+int3 = names[app_in_third &! app_in_second &! app_in_first]
+int4 = names[app_in_fourth &! app_in_third &! app_in_second &! app_in_first]
+int5 = names[app_in_fifth &! app_in_fourth &! app_in_third &! app_in_second &! app_in_first]
+
+#otteniamo un barplot con i personaggi introdotti per parte
+
+data <- data.frame(
+  value = c(length(int1), length(int2), length(int3), length(int4), length(int5)),  
+  name = c("1" , "2" , "3", "4", "5"),
+  number_of_eps=c(p1,p2,p3,p4, p5)
+  )
+
+l = 0.3
+data$right <- c(0,p1,p2,p3,p4)+l
+data$left <- c(p1,p2,p3,p4,p5)-l
+
+big_barplot <- ggplot(data, aes(ymin = 0)) + 
+    geom_rect(aes(xmin = left, xmax = right, ymax = value, fill = as.factor(name))) +
+    xlab("episodes") + 
+    ylab("per part") +
+    scale_fill_manual(values = c(viridis(5))) +
+    labs(fill="Part") +
+    theme(legend.position="bottom")
+
+grid.arrange(barplot, big_barplot)
+
+
+
+```
+
+Ogni parte ha ambientazione e tema diversi, per cui (anche a causa della costante introduzione di nuovi personaggi) si può supporre che una buona parte dei personaggi siano "comparse". Osserviamo infatti che la maggior parte dei personaggi è presenti in al più una sola parte:
+
+
+```{r, warning=FALSE}
+
+#vediamo quanti personaggi appaiono in quante parti diverse.
+#rappresentiamo con il colore la parte in cui sono stati visti per la prima volta usando uno stacked barplot.
+
+part <- c(rep("1" , 5) , rep("2" , 5) , rep("3" , 5) , rep("4" , 5), rep("5", 5) )
+
+first_app_bar <- rep(c("1" , "2" , "3", "4", "5") , 5)
+
+apps_in_parts = app_in_first + app_in_second + app_in_third + app_in_fourth + app_in_fifth 
+
+#questo codice serve a plottare lo stacked barplot
+
+v1 = c()
+
+for (i in 1:5) {
+  v2 = c(length(intersect(names[apps_in_parts == i],int1)), 
+         length(intersect(names[apps_in_parts == i],int2)), 
+         length(intersect(names[apps_in_parts == i],int3)), 
+         length(intersect(names[apps_in_parts == i],int4)), 
+         length(intersect(names[apps_in_parts == i],int5)))
+             
+  v1 = c(v1,v2)
+} 
+
+value = v1
+
+data <- data.frame(part,first_app_bar,value)
+ 
+# Stacked
+
+stacked <- ggplot(data, aes(fill=first_app_bar, y=value, x=part)) + 
+  geom_bar(position="stack", stat="identity") +
+    scale_fill_manual(values = c(viridis(5))) +
+    labs(fill="First appearance on part:", x="Number of parts", y="Number of characters")
+stacked
+
+
+
+
+venn = venn.diagram( #il diagramma di Venn è interessante ma poco informativo, ho scelto alla fine di non plottarlo
+  x = list(ch1, ch2, ch3, ch4, ch5),
+  category.names = c("1" , "2" , "3", "4", "5"),
+  filename = 'venn_diagramm.png',
+  
+  imagetype="png" ,
+  height = 1600, 
+  width = 1600, 
+  resolution = 400,
+  compression = "lzw",
+  
+  cat.default.pos = "inner",
+  cat.fontfamily = "sans",
+  cat.cex = 0,
+  cat.fontface = "bold",
+
+  
+  lwd = 2,
+  lty = 'blank',
+  fill = viridis(5)
+)
+
+#image <- load.image('venn_diagramm.png')
+#plot(image, axes = FALSE)
+```
+
+Di 106 personaggi più di 80 appaiono in una sola parte della serie, mentre solo 11 sono presenti in almeno 3 parti. Notiamo in particolare che Baki e suo padre Yujiro sono i soli personaggi presenti in ogni parte. D'ora in avanti, considereremo gli 11 personaggi presenti in almeno 3 parti come i personaggi principali di _Baki_.
+
+```{r}
+#semplice dataframe con i personaggi principali della serie
+mains = names[apps_in_parts>=3]
+main_wins = degree(g, mode='out')[apps_in_parts>=3]
+main_losses = degree(g, mode='in')[apps_in_parts>=3]
+
+main_app = first_app[apps_in_parts>=3]
+
+mains_tibble = tibble(mains) %>% 
+  add_column(main_app) %>% 
+  add_column(main_wins) %>% 
+  add_column(main_losses) %>%   
+  arrange(main_app)
+
+
+
+kable(mains_tibble, col.names = c('Personaggi principali', 'Primo episodio', 'Vittorie', 'Sconfitte'))
+```
+
+
+## La rete dei combattimenti
+
+Visualizziamo il grafo dei combattimenti e analizziamone qualche proprietà generale.
+
+```{r, warning=FALSE}
+v = degree(g, mode = "out") #numero delle vittorie
+d = degree(g, mode = "in")
+
+lay = create_layout(g, layout = "fr") #salviamo il layout per poterlo riusare dopo
+
+
+first_app_color = rep(1, n_char)
+first_app_color[first_app>p1] = 2
+first_app_color[first_app>p2] = 3
+first_app_color[first_app>p3] = 4
+first_app_color[first_app>p4] = 5
+
+#rappresentimo il (multi)grafo colorando i personaggi in base alla parte in cui sono introdotti per la prima volta.
+#indichiamo con la forma dei nodi se sono tra i protagonisti
+#infine indichiamo con la dimensione il numero di combattimenti totale
+
+ggraph(lay) + 
+  geom_edge_fan(aes(alpha = -stat(index)), show.legend = FALSE) +
+  scale_color_viridis(discrete=TRUE, labels = c("1", "2", "3", "4", "5")) +
+  geom_node_point(aes(color=as.factor(first_app_color), size = v+d, shape = apps_in_parts>=3))  +
+  geom_node_text(label = "") + 
+  labs(col = "Introduced in part", size = "Fights", shape = "Character") +
+  ggtitle("Graph of fights") +
+  theme(plot.title = element_text(hjust = 0.5)) +
+  scale_shape_discrete(labels = c("Not Main", "Main")) +
+  theme_graph()
+
+
+```
+
+#### Distribuzione dei gradi
+
+```{r}
+degree = degree(g)
+
+#vediamo la distribuzione dei gradi
+ggplot(data.frame(degree), aes(x = degree)) + 
+ geom_histogram( binwidth=1, fill=viridis(max(degree)), color="#ffffff", alpha=0.9)
+
+ccdf = function(d) {
+  n = length(d)
+  max = max(d)
+  p = rep(0, max)
+  for (i in 1:length(p)) {
+    p[i] = length(d[d >= i]) / n
+  } 
+  return(p)
+}
+
+p = ccdf(degree) #complementary cumulative distribution function
+
+plot(1:max(degree), p[1:length(p)], log="xy", type = "l", xlab="Degree", ylab="CCDF")
+
+```
+
+Osserviamo una distribuzione del tipo "scale free", tipica di molte reti reali. Tra tutti, due nodi si contraddistinguono per il loro grado estremamente elevato, ovvero quelli corrispondenti a Baki e a Yujiro.
+
+```{r, results='asis'}
+
+diam = diameter(ug)
+
+skewness = function(x) mean( (x - mean(x))^3 ) / sd(x)^3
+sk = skewness(degree)
+t = transitivity(g, type = "global")
+
+kable(tibble("Transitività" = t,
+       "Distanza media" = mean_distance(ug),
+       "Diametro" = diam,
+       "Skewness"=sk))
+
+```
+
+Un dato molto interessante è l'indice di transitività discretamente basso.
+
+* Uno dei motivi principali per cui accade ciò è che se due personaggi hanno lo stesso rivale, essi saranno più probabilmente alleati che nemici, e quindi non combatteranno tra loro.
+* Inoltre molti combattimenti si svolgono all'interno di tornei a eliminazione diretta.
+
+## Score
+
+Possiamo adesso definire 4 indici di "forza" per ogni combattente:
+ 
+* Win Rate
+* Win-Loss Score
+* Generalized Katz Score
+* Page Rank
+
+### Katz Score come indice di forza
+
+* Proposto (con questo scopo) in " _A network-based ranking system for US college football_" da Juyong Park e M. E. J. Newman
+* È la differenza di due indici, il primo calcolato sulle vittorie, il secondo sulle sconfitte
+* Intuitivamente, un nodo ha un punteggio vittorie (o sconfitte) elevato se vince (o perde) contro nodi con punteggio elevato o contro molti nodi
+* È un indice più adatto rispetto alla differenza _out-degree - in-degree_, in quanto tiene conto anche delle vittorie (e sconfitte) "indirette"
+
+### Page Rank
+
+L'indice di Katz non tiene in conto il grado dei nodi. Intuitivamente, sconfiggere un combattente che ha perso contro molti avversari vale di meno rispetto a sconfiggere un avversario che ha perso meno volte. Nel caso di grafi regolari (come nei tornei di football americano) questo non è un problema, ma in reti con nodi di grado molto diverso l'indice Page Rank è più adatto, in quanto il contributo a ogni nodo è pesato in base al grado.
+
+```{r}
+
+#Di seguito le funzioni che calcolano gli score per ogni episodio. Lidea generale è la seguente:
+
+#1) costruzione del grafo dei combattimenti avvenuti nei primi T episodi
+#2) al grafo si "somma" il grafo ausiliare con peso 0.5, ottenendo un grafo pesato
+#3) calcolo dell'indice basato su grafo
+#4) se un personaggio non ha ancora combattuto, il suo score è settato come NaN
+#5) restituire in output il dataframe (tibble) degli score
+
+computeWinRate <- function(df) {
+  score_tibble = tibble(names)
+  
+  for (i in 1:p5){
+    archi_i = filter(df, V3 <= i)
+    g_i = graph_from_data_frame(archi_i, vertices = names)
+    
+    score = round(degree(g_i, mode="out")/degree(g_i, mode="all")*100,2)
+    score[first_app>i] = NaN
+    score_tibble = cbind(score_tibble, as_tibble(score))
+    
+  }
+  
+  colnames(score_tibble) = c("Name", paste("Ep", 1:p5, sep=" ")
+)
+  rownames(score_tibble) = names
+  return(as_tibble(score_tibble))
+}
+
+wr = computeWinRate(df) #calcolo del winrate score
+
+
+computeWinLoss <- function(df) {
+  score_tibble = tibble(names)
+  
+  for (i in 1:p5){
+    archi_i = filter(df, V3 <= i)
+    archi_i_aux = filter(dfAux, V3 <= i)
+    
+    g_i = graph_from_data_frame(archi_i, vertices = names)
+    g_i_aux = graph_from_data_frame(archi_i_aux, vertices = names)
+    
+    m_i = as.matrix(as_adjacency_matrix(g_i))
+    m_i_aux  = as.matrix(as_adjacency_matrix(g_i_aux))
+ 
+    
+    M = m_i + t(m_i_aux) * 0.5
+
+    g_i = graph_from_adjacency_matrix(M, weighted=TRUE)
+    
+    score = degree(g_i, mode="out")-degree(g_i, mode="in")
+    score[first_app>i] = NaN
+    score_tibble = cbind(score_tibble, as_tibble(score))
+    
+
+    
+  }
+  
+  colnames(score_tibble) = c("Name", paste("Ep", 1:p5, sep=" ")
+)
+  rownames(score_tibble) = names
+  return(as_tibble(score_tibble))
+}
+
+wl = computeWinLoss(df) #win-loss
+
+
+computeKatzScores <- function(df, dfAux, auxValue = 0.5, bAlpha = 0.8) {
+ 
+  score_tibble = tibble(names)
+  
+  
+  for (i in 1:p5) {
+    archi_i = filter(df, V3 <= i)
+    archi_i_aux = filter(dfAux, V3 <= i)
+    
+    g_i = graph_from_data_frame(archi_i, vertices = names)
+    g_i_aux = graph_from_data_frame(archi_i_aux, vertices = names)
+    
+    m_i = as.matrix(as_adjacency_matrix(g_i))
+    m_i_aux  = as.matrix(as_adjacency_matrix(g_i_aux))
+    
+    m_i = t(m_i)  
+    
+    M = m_i + m_i_aux * auxValue
+
+    
+    eig = eigen(M)$values
+    r = max(abs(eig))
+    alpha = bAlpha / r #base alpha value
+    
+    g = graph_from_adjacency_matrix(M, weighted=TRUE)
+    tg = graph_from_adjacency_matrix(t(M), weighted = TRUE)
+    
+    katzPos =  alpha_centrality(g, alpha = alpha, exo = 1)
+    katzNeg =  alpha_centrality(tg, alpha = alpha, exo = 1)
+
+    
+    score = round((katzPos - katzNeg),2)
+    score[first_app>i] = NaN
+    score_tibble = cbind(score_tibble, as_tibble(score))
+    
+
+    
+  }
+  
+  colnames(score_tibble) = c("Name", paste("Ep", 1:p5, sep=" ")
+)
+  rownames(score_tibble) = names
+  return(as_tibble(score_tibble))
+}
+
+ks = computeKatzScores(df, dfAux) #katz score
+
+
+computePageRank <- function(df, dfAux, auxValue = 0.5, damping = 0.85) {
+  score_tibble = tibble(names)
+  
+  for (i in 1:p5){
+    archi_i = filter(df, V3 <= i)
+    archi_i_aux = filter(dfAux, V3 <= i)
+    
+    g_i = graph_from_data_frame(archi_i, vertices = names)
+    g_i_aux = graph_from_data_frame(archi_i_aux, vertices = names)
+    
+    m_i = as.matrix(as_adjacency_matrix(g_i))
+    m_i_aux  = as.matrix(as_adjacency_matrix(g_i_aux))
+    
+    m_i = t(m_i)  
+    
+    M = m_i + m_i_aux * auxValue
+
+    g = graph_from_adjacency_matrix(M, weighted=TRUE)
+    tg = graph_from_adjacency_matrix(t(M), weighted = TRUE)
+    
+    score =  page_rank(g, damping = damping)$vector *100 - page.rank(tg, damping = damping)$vector * 100 
+    #moltiplichiamo per 100 per aumentare la leggibilità
+    
+    score[first_app>i] = NaN
+    score_tibble = cbind(score_tibble, as_tibble(score))
+
+    
+  }
+  
+  colnames(score_tibble) = c("Name", paste("Ep", 1:p5, sep=" ")
+)
+  rownames(score_tibble) = names
+  return(as_tibble(score_tibble))
+}
+
+pr = computePageRank(df, dfAux, damping = 0.85) #page rank score
+
+
+get_best <- function(values, ep, amount = 10) { #funzione per stampare i personaggi più forti in un dato ep
+    values %>% 
+    select(Name, paste("Ep", ep)) %>% 
+    arrange(desc(values[ep+1])) %>% 
+    head(amount)
+}
+
+
+
+
+
+```
+
+### Valutare lo score migliore
+
+Vogliamo determinare se un dato _score_ sia davvero indicativo della forza di un personaggio. Per fare ciò:
+
+* Per ogni episodio costruiamo il grafo dei combattimenti avvenuti fino a quell'episodio
+  * Il grafo sarà dato da una combinazione del grafo principale con il grafo ausiliare
+* Per ogni grafo calcoliamo lo score di ogni personaggio
+* Per ogni combattimento svolto nell'episodio successivo valutiamo se il vincitore è quello con lo score più alto
+  * In tal caso diremo che l'esito è stato previsto correttamente
+  * Escludiamo da questa analisi i combattimenti tra personaggi "nuovi"
+    * Questo riduce il numero di combattimenti valutabili da 175 a 81
+* La precisione dello score sarà il rapporto tra i combattimenti previsti correttamente e quelli valutabili.
+
+```{r}
+
+predict <- function(values, ties = FALSE) { #la funzione, fissato g e lo score "values", calcola quanti risultati sono in accordo con lo score dell'ep precedente.
+  c = 0
+  t = 0
+  for(j in 1:length(E(g))){
+    for(i in 5:p5){
+      if(E(g)[j]$V3==i){
+        a = ends(g, j, names=FALSE)[1] #id_winner
+        b = ends(g, j, names = FALSE)[2] #loser
+
+        if(first_app[a]<i & first_app[b]<i) {
+          t = t+1
+          if(values[a, i]>values[b, i]){
+            c = c+1
+          } #If ties == TRUE, we randomly choose the winner, i.e. we add 0.5
+          if(ties == TRUE & values[a, i]==values[b, i]) {
+            c = c+0.5
+          }
+        }
+      }
+    }
+  }
+  
+
+  perc = round(c/t*100,2)
+  #print(paste("Predice correttamente l'esito di ", c, " battaglie su ", t, " (",perc,"%).", sep = ""))
+  return(perc)
+}
+
+
+
+wrv = predict(wr) #winrate value (della precisione)
+wlv = predict(wl)
+ksv = predict(ks)
+prv = predict(pr)
+
+wrvt = predict(wr, ties = TRUE) #winrate value con pareggio
+wlvt = predict(wl, ties = TRUE)
+ksvt = predict(ks, ties = TRUE)
+prvt = predict(pr, ties = TRUE)
+
+
+```
+## Risultati
+
+* Il WinRate è un pessimo _score_, in quanto ha una precisione di poco superiore al 45%.
+  * Questo dipende dal fatto che è un indice "discontinuo", e che assumendo un range di valori limitato porta spesso a coppie di valori uguali, che vengono contati come previsioni errate
+* Il valore Win-Loss ha una precisione di quasi il 55%
+* L'indice di Katz raggiunge il 65%
+* Page Rank ha invece una precisione di poco inferiore al 70%
+
+```{r, results='asis'}
+data <- data.frame(
+  name = c("WinRate", "Win-Loss", "Katz", "PageRank"),
+  value = c(wrv, wlv, ksv, prv)
+  )
+
+barplot(data$value,
+        col = c(viridis(4)),
+        names.arg = data$name,
+        main = "Precision by score",
+        ylab = "correctly predicted (%)",
+        ylim=range(pretty(c(0, 80))) 
+        
+        )
+
+```
+
+### Modifica nel calcolo della precisione
+
+* Il criterio di valutazione scelto considera le previsioni tra personaggi con lo stesso score sbagliate a priori
+* Per ovviare a questo problema, possiamo supporre che in caso di punteggio uguale l'algoritmo preveda il vincitore scegliendo "a caso"
+  * Nella pratica, consideriamo 0.5 previsioni corrette in più per ogni combattimento tra personaggi con lo stesso score
+* Questa modifica migliora sostanzialmente la precisione dei primi due score
+* In ogni caso l'indice di Katz e Page Rank rimangono quelli con la precisione più elevata.
+
+```{r}
+
+results = tibble("Type" = "Standard", "Winrate" = wrv,
+       "Win-Loss" = wlv,
+       "Katz" = ksv,
+       "PageRank"=prv)
+
+results = add_row(results, "Type" = "Adjusted", "Winrate" = wrvt,
+       "Win-Loss" = wlvt,
+       "Katz" = ksvt,
+       "PageRank"=prvt)
+
+results = column_to_rownames(results, var = "Type")
+
+kable(results)
+
+```
+
+### Correlazione degli score
+
+```{r}
+my_data <- data.frame(
+  value=c(pr[p5+1], ks[p5+1], wl[p5+1], wr[p5+1])
+)
+colnames(my_data) = c("PageRank","Katz","Win-Loss","WinRate")
+
+res <- cor(my_data)
+#round(res, 2)
+
+corrplot.mixed(res, upper = 'color', lower = 'number')
+
+```
+
+Notiamo che la correlazione degli score basati su PageRank, Katz e Win-Loss è estremamente elevata, come ci si poteva aspettare. Il WinRate è in ogni caso correlato positivamente con gli altri score.
+
+
+```{r, message=FALSE, warning = FALSE}
+
+check_predicted <- function(values) { #questa funzione, fissato uno score, valuta per ogni combattimento avvenuto se esso è stato previsto correttamente dallo score o meno, o se è avvenuto tra personaggi "nuovi" fino al momento del combattimento).
+
+  pre = rep(1, length(E(g))) #1 = non prevedibile  
+  for(j in 1:length(E(g))){ 
+    for(i in 5:p5){
+      if(E(g)[j]$V3==i){
+        a = ends(g, j, names=FALSE)[1] #id_winner
+        b = ends(g, j, names = FALSE)[2] #loser
+
+        if(first_app[a]<i & first_app[b]<i) {
+          if(values[a, i]>values[b, i]){
+            pre[j] = 2 #2 = previsione corretta
+          } else{
+            pre[j] = 3 #3 = previsione errata
+          }
+        }
+      }
+    }
+  }
+  
+  return(pre)
+}
+
+corrects = check_predicted(pr)
+
+ggraph(lay) + 
+  geom_edge_link(aes(alpha = as.factor(corrects), #i lati sono colorati in base alla previsione del pagerank
+                     color = as.factor(corrects)),
+                     show.legend = TRUE) +
+  scale_edge_alpha_manual(
+    guide = FALSE,
+    values = c(0.35, 0.75, 0.65)) +
+  
+  geom_node_point(aes(color = as.numeric(as.factor(pr[p5+1]$`Ep 98`)),
+                      size = v+d,
+                      shape = apps_in_parts>=3))  +
+  geom_node_text(label = "") + 
+  scale_color_viridis(discrete=FALSE, guide_colorbar("PageRank score")) +
+  labs(size = "Fights", shape = "Character", edge = "Prediction") +
+  ggtitle("Graph of fights with prediction") +
+    scale_edge_colour_manual(
+    guide_legend("Prediction"),
+    values = c("#000000", "#4100ba", "#ba0000"), #black, blue, red
+    labels= c("Unpredictable", "Correctly predicted", "Wrongly predicted")) + 
+  theme(plot.title = element_text(hjust = 0.5)) +
+  scale_shape_discrete(guide=FALSE) +
+  theme_graph()
+  
+```
+
+Abbiamo visto quindi che Page Rank fornisce un buono score per la forza dei personaggi.
+Visualizziamo adesso l'andamento di questo score relativo ai protagonisti episodio per episodio.
+
+
+```{r, warning=FALSE}
+pr$Name = with(pr, reorder(Name, -`Ep 98`)) #ordiniamo i personaggi in base al loro score finale
+
+
+#prepariamo i dati
+pr_long <- pr %>% #pivot longer
+  arrange(desc(`Ep 98`)) %>% 
+  filter(Name %in% mains) %>% 
+  pivot_longer(!Name, names_to = "ep", values_to = "value") %>% 
+  mutate(ep_as_number = as.numeric(substring(ep, first = 3))) %>% 
+  select(!ep)
+
+#plot dello score
+ggplot(pr_long, aes(x = ep_as_number, y=value, color = Name)) +
+    ggtitle("Score of mains characters (smoothed)") +
+     geom_hline(yintercept = 0, alpha = 0.25) +
+    geom_vline(xintercept = c(p1,p2,p3,p4,p5), alpha = 1, linetype="dashed", colour = viridis(5)) +
+  geom_smooth(se = FALSE, span = 0.2, method = 'loess', formula = y ~ x) +
+  labs(x = "Episode") +
+  labs(y = "Score") +
+  theme_classic()
+
+```
+
+Notiamo che quasi tutti i protagonisti hanno uno score molto alto.
+
+* Lo score in ogni episodio ha media nulla
+* La maggior parte dei personaggi ha score negativo
+
+```{r}
+lscore = pr[p5+1] %>% 
+  rename('Last Score' = 'Ep 98')
+
+kable(summary(lscore))
+
+qs = quantile(lscore$`Last Score`)
+
+lines = c(qs[2], qs[3], qs[4])
+
+ggplot(lscore) +
+  aes(x = `Last Score`) +
+  geom_vline(xintercept = 0, alpha = 0.75, linetype="dashed") +
+  geom_histogram(bins = 100, fill = viridis(100))
+
+```
+
+### Modello lineare 
+
+Notiamo che in generale lo score è abbastanza irregolare:
+
+* Lo score può variare sensibilmente da episodio a episodio
+* Ogni stagione è un arco narrativo a sé stante, quindi può essere interessante visualizzare gli score dei personaggi principali a ogni fine stagione
+* Infatti molte stagioni di Baki terminano con uno scontro decisivo tra Baki e un altro personaggio "forte", e determinano quindi il nuovo livello di forza dei personaggi.
+
+
+```{r, message = FALSE, warning = FALSE}
+
+
+pr_long <- pr %>%  #come prima, ma considerando solo gli episodi "finali" di ogni stagione
+  filter(Name %in% mains) %>% 
+  pivot_longer(!Name, names_to = "ep", values_to = "value") %>% 
+  mutate(ep_as_number = as.numeric(substring(ep, first = 3))) %>% 
+  select(!ep) %>% 
+  filter(ep_as_number %in% c(p1, p2, p3, p4, p5))
+
+ggplot(pr_long, aes(x = ep_as_number, y=value, color = Name)) +
+  ggtitle("Score of mains characters (per part)") +
+  geom_line(aes(group = Name), alpha = 1) +
+      geom_vline(xintercept = c(p1,p2,p3,p4,p5), alpha = 0.75, linetype="dashed", colour = viridis(5)) +
+   geom_hline(yintercept = 0, alpha = 0.25) +
+  labs(x = "Episode") +
+  labs(y = "Score") +
+  theme_classic()
+
+```
+
+Possiamo ora fare qualche considerazione di carattere generale.
+
+
+* Il livello di forza di Baki cresce quasi in ogni stagione
+* Lo score degli altri personaggi tende generalmente a decrescere
+* Una possibile spiegazione di questo fatto è che nella serie vengono introdotti personaggi sempre più forti
+* Inoltre lo score calcolato è un indice di forza "relativo" e non "assoluto"
+
+Supponendo che il livello di forza dei personaggi di Baki segua un andamento lineare, siamo in grado di supporre tra quanti episodi Baki riuscirà finalmente a superare suo padre.
+
+
+```{r}
+
+
+pr_long_lin <- pr_long %>% 
+  group_by(Name) %>% 
+  nest()
+
+
+score_model <- function(df) {
+  lm(value ~ ep_as_number, data = df)
+}
+
+pr_long_lin <- pr_long_lin %>% 
+  mutate(model = map(data, score_model))
+
+df= tibble()
+
+max_X = 125
+
+
+for(i in 1:length(mains)){ #grafico dei modelli lineari
+  df1 = tibble(Name = pr_long_lin$Name[i], x = 0, y = pr_long_lin$model[[i]]$coefficients[1])
+  df2 = tibble(Name = pr_long_lin$Name[i], x = max_X,
+             y = pr_long_lin$model[[i]]$coefficients[1]+ pr_long_lin$model[[i]]$coefficients[2]*max_X)
+  df = bind_rows(df, df1)
+  df = bind_rows(df, df2)
+}
+
+
+
+intersect <- function(l1, l2){ #funzione che restituisce intersezione tra due rette
+    x <- (l2[1] - l1[1]) / (l1[2] - l2[2])
+    y <- l1[1] + l1[2] * x
+    return(xy=c(x, y))
+}
+
+bakiLine = pr_long_lin$model[[1]]$coefficients
+yujiroLine = pr_long_lin$model[[3]]$coefficients
+
+p = intersect(bakiLine,yujiroLine)
+
+
+ggplot(df, aes(x = x, y=y, color = Name)) +
+  geom_line(aes(group = Name), alpha = 1) +
+  ggtitle("Linear Model") +
+  geom_point(aes(x=p[1], y=p[2]), colour="red") +
+  annotate(geom = "point", shape = "|", x = p[1], y = -Inf, size = 3, color = 'red') +
+  geom_vline(xintercept = 98, alpha = 0.5, linetype="dashed") +
+  labs(x = "Episode") +
+  labs(y = "Score") +
+  coord_cartesian(clip = 'off') +
+  theme_classic()
+
+
+```
+
+Otteniamo infine  che, secondo questo modello, Baki potrebbe finalmente superare suo padre Yujiro intorno all'episodio 115. Non ci rimane quindi che aspettare le prossime stagioni di _Baki The Grappler_ per vedere se la previsione è corretta o meno!

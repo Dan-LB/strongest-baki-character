@@ -1,0 +1,179 @@
+Baki,Naito,1
+Baki,Kitazawa,1
+Kuriyagawa,Kitazawa,1
+Yuri Chakovsky,Sensarak Dinoy,1
+Kaoru Hanayama,Tommy,2
+Yuri Chakovsky,Baki,2
+Yasha Ape,Ando,3
+Yuri Chakovsky,Quevas,3
+Baki,Yasha Ape,4
+Kaoru Hanayama,Yuri Chakovsky,5
+Baki,Kaoru Hanayama,7
+Yujiro Hanma,Eiichi Akezawa,8
+Yujiro Hanma,Kaoru Hanayama,8
+Yujiro Hanma,Baki,8
+Yujiro Hanma,Yasha Ape,9
+Baki,Sanada,10
+Baki,Kuraishi,10
+Baki,Chiba,10
+Baki,Gaia,11
+Baki,Kurokawa,12
+Yujiro Hanma,Kanemoto,12
+Yujiro Hanma,Gaia,13
+Baki,Yuri Chakovsky,13
+Baki,Kaoru Hanayama,13
+Yujiro Hanma,Baki,14
+Yujiro Hanma,Emi Akezawa,14 
+Baki,Kano Shumei,16
+Doppo Orochi,Kato,17
+Baki,Shinogi Kosho,18
+Kato,Takagi,19
+Baki,Toba,20
+Yujiro Hanma,Baki,21
+Yujiro Hanma,Motobe Izo,21
+Dr.Shinogi,Mr.Vale,22
+Yujiro Hanma,Doppo Orochi,23
+Baki,Dr.Shinogi,24
+Baki,Artemis Reagan,25
+Zulu,Jitpika,25
+Igari,Rob Robinson,26
+Kinryuzan,Motobe Izo,26
+Sergei Taktaroff,Artemis Reagan,26
+Retsu Kaio,Sergei Taktaroff,26
+Yasha Jr.,Kuriki,26
+Yasha Jr.,Robert Guerlain,26
+Yasha Jr.,Kato,26
+Katsumi Orochi,Yasha Jr.,27
+Kaoru Hanayama,Inagi Bunnoshin,27
+Katsumi Orochi,Roland Gustaf,27
+McGregor,Li Moko,28
+Yujiro Hanma,Jagatta Sherman,28
+Shiba Chiharu,Hatanaka Kohei,28
+Misaki Kengo,Mike Queen,28
+Yujiro Hanma,Chamoan,28
+Jack Hammer,Sergio Silva,29
+Amanai Yu,Yamamoto Minoru,29
+Doppo Orochi,Richard Filth,30
+Goki Shibukawa,Roger Harlon,30
+Shinogi Kosho,Dr.Shinogi,31
+Baki,Zulu,31
+Igari,Kinryuzan,32
+Retsu Kaio,Toba,32
+Katsumi Orochi,Kaoru Hanayama,33
+Shiba Chiharu,McGregor,34
+Garland,Shiba Chiharu,35
+Garland,Kaoru Hanayama,35
+Jack Hammer,Shiba Chiharu,35
+Jack Hammer,Misaki Kengo,35
+Doppo Orochi,Amanai Yu,36
+Yujiro Hanma,Amanai Yu,36
+Yujiro Hanma,Li Moko,37
+Yujiro Hanma,McGregor,37
+Yujiro Hanma,Roger Harlon,37
+Yujiro Hanma,Richard Filth,37
+Yujiro Hanma,Hatanaka Kohei,37
+Yujiro Hanma,Kinryuzan,37
+Yujiro Hanma,Rob Robinson,37
+Yujiro Hanma,Roland Gustaf,37
+Goki Shibukawa,Shinogi Kosho,37
+Baki,Igari,38
+Retsu Kaio,Katsumi Orochi,39
+Garland,Anaconda,39
+Jack Hammer,Garland,40
+Goki Shibukawa,Mikoshiba Kihei,41
+Goki Shibukawa,Doppo Orochi,41
+Baki,Retsu Kaio,42
+Jack Hammer,Goki Shibukawa,43
+Jack Hammer,Dr.Shinogi,43
+Baki,Jack Hammer,47
+Yujiro Hanma,Jack Hammer,47
+Yujiro Hanma,Mr. Oliver,48,
+Mr. Oliver,Yujiro Hanma,48,
+Doyle,Rob Robinson,50
+Yanagi,Goki Shibukawa,50
+Dorian,Katsumi Orochi,51
+Sikorsky,Tateoka,51
+Sikorsky,Igari,51
+Dorian,Doppo Orochi,52
+Sikorsky,Igari,52
+Spec,Sonoda,53
+Kaoru Hanayama,Spec,54
+Yanagi,Arashi Kita,55
+Yanagi,Baki,55
+Dorian,Kato,57
+Dorian,Suedo,58
+Doppo Orochi,Dorian,59
+Kato,Dorian,60
+Retsu Kaio,Dorian,60
+Mr. Oliver,Jeff,61
+Baki,Sikorky,62
+Mr. Oliver,Sikorsky,63
+Mr. Oliver,Doyle,63
+Goki Shibukawa,Mr. Oliver,63
+Mr. Oliver,Tawaraya,63
+Goki Shibukawa,Mr. Oliver,64
+Doyle,Shinogi Kosho,65
+Retsu Kaio,Doyle,66
+Doyle,Mr. Hide,66
+Doyle,Katsumi Orochi,66
+Doppo Orochi,Doyle,67
+Katsumi Orochi,Doyle,67
+Yanagi,Kunimatsu,67
+Baki,Yanagi,69
+Baki,Sikorsky,69
+Yanagi,Doyle,69
+Sikorsky,Garland,69
+Jack Hammer,Sikorsky,70
+Gaia,Sikorsky,71
+Motobe Izo,Yanagi,71
+Yujiro Hanma,Motobe Izo,72
+Mr. Oliver,Doyle,72
+Ali Jr.,Dave,72
+Yujiro Hanma,Mohamed Ali,73
+Baki,Youou Cho,74
+Yujiro Hanma,Ryu Kaio,75
+Ali Jr.,Jo Kaio,76
+Baki,Li Kaio,76
+Kaku Kaio,Samwan Kaio,77
+Yujiro Hanma,Samwan Kaio,77
+Yoh Kaio,Dorian,77
+Mr. Oliver,Yoh Kaio,77
+Jyaku Kaio,Chin Kaio,78
+Retsu Kaio,Son Kaio,78
+Kaku Kaio,Moh Kaio,78
+Mr. Oliver,Ron Shobun,79
+Baki,Shunsei,79
+Retsu Kaio,Jyaku Kaio,80
+Ali Jr.,Han Kaio,80
+Yujiro Hanma,Kaku Kaio,82
+Ali Jr.,Goki Shibukawa,83
+Ali Jr.,Doppo Orochi,83
+Jack Hammer,Ali Jr.,84
+Goki Shibukawa,Ali Jr.,84
+Doppo Orochi,Ali Jr.,84
+Mohamed Ali,Ali Jr.,85
+Baki,Ali Jr.,86
+Elephant,Mr. Saman,88
+Yujiro Hanma,Elephant,88
+Baki,Rumina,88
+Baki,Iron Micheal,88
+Baki,Mantis,89
+Baki,Bosh,89
+Mr. Second,First,90
+Lessen,Bosh,90
+Lips,Iron Micheal,91
+Teeth,Iron Micheal,91
+Tongue,Iron Micheal,91
+Mr. Second,Lips,92
+Mr. Second,Teeth,92
+Mr. Second,Tongue,92
+Yujiro Hanma,Lessen,94
+Yujiro Hanma,Bosh,94
+Lessen,Bosh,94
+Mr. Oliver,Mr. Second,95
+Baki,Michael Holes,96
+Baki,Mr. Oliver,98
+
+
+
+
